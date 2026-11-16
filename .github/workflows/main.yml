@@ -1,0 +1,58 @@
+
+name: Nely Bely APK Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Extract Flutter ZIP
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "File ZIP tidak ditemukan!"
+            exit 1
+          fi
+          mkdir extracted
+          unzip -q "$ZIP_FILE" -d extracted
+          PROJECT_DIR=$(dirname "$(find extracted -name pubspec.yaml | head -n 1)")
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "pubspec.yaml tidak ditemukan!"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.7.12'
+
+      - name: Install Dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nely-Bely-APK
+          path: extracted/**/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
